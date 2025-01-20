@@ -1,1 +1,18 @@
 
+name: Trigger Workflow in Another Repo
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  trigger-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Workflow in Second Repo
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.REPO_ACCESS_TOKEN }} # Add Personal Access Token in Secrets
+          repository: your-username/second-repo
+          event-type: test-trigger
