@@ -6,13 +6,68 @@ on:
     branches:
       - main
 
+env:
+  EKS_CLUSTER_NAME: 'pilotbird-dev-eks'
+  AWS_ROLE_ARN: ${{ secrets.DEV_AWS_ROLE_ARN }}
+  AWS_ACCOUNT_ID: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
+  GOOGLE_APPLICATION_CREDENTIALS_JSON : ${{ secrets.DEV_AKS_GCP_ACCESS }}
+  DEV_STAGING_GRAFANA_TOKEN: ${{ secrets.DEV_STAGING_GRAFANA_TOKEN }}
+  GCP_PROJECT_ID : 'dev-environment-363702'
+  EKS_WORKDIR: aws/aws-resources/dev/
+  ADDONS_WORKDIR: aws/aws-resources/addons/
+  ES_WORKDIR: aws/external-secret/dev/
+  APPS_WORKDIR: aws/kubernetes/dev
+  SCALEOBJ_WORKDIR: aws/scaledobject/
+  GRAFANA_WORKDIR: aws/grafana/
+  KONGCRD_WORKDIR: aws/kong-crd/
+  KONG_WORKDIR: aws/kong/
+  APIGATEWAY_WORKDIR: aws/api-gateway/
+  GUACAMOLE_WORKDIR: aws/guacamole/
+  KUBEVIRT_WORKDIR: aws/kubevirt/
+  KUBEVIRTCRD_WORKDIR: aws/kubevirt-cr/
+  KUBEVIRTVM_WORKDIR: aws/kubevirt-vms/
+  PROMETHEUS_WORKDIR: aws/prometheus-stack/
+  UIUX_WORKDIR: aws/uiux-trigger/
+  KUBE_FLEDGED_WORKDIR: aws/kube-fledged/
+  KUBE_FLEDGED_CRD_WORKDIR: aws/kube-fledged-crd/
+  DEV_GKE_AUTHENTICATOR: ${{ secrets.DEV_GKE_AUTHENTICATOR }}
+  ECR_WORKDIR: aws/aws-resources/ecr/
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
 jobs:
-  trigger-workflow:
+  eks_cluster:
+    name: "Deploy AWS EKS CLUSTER - Dev"
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    defaults:
+      run:
+        shell: bash
+
     steps:
-      - name: Trigger Workflow in Second Repo
-        uses: peter-evans/repository-dispatch@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v3
         with:
-          token: ${{ secrets.REPO_ACCESS_TOKEN }}
-          repository: pilotbird-Harsh-Viradia/repo-2
-          event-type: test-trigger
+          ref: dev  
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+          role-session-name: GitHubActionsTerraformSession
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.0
+
+      - name: Deploying EKS - Terraform Init
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 5
+          retry_wait_seconds: 120
+          command: terraform init -backend-config=backend/dev.backend.tf
+          working-directory: ${{ env.EKS_WORKDIR }}
